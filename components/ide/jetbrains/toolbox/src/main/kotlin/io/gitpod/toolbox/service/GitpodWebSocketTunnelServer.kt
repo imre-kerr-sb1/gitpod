@@ -74,7 +74,7 @@ class GitpodWebSocketTunnelServer(
             // Forward data from WebSocket to TCP client
             socketClient.onMessageCallback = { data ->
                 outputStream.write(data)
-                thisLogger().info("gitpod: tunnel[$url]: received ${data.size} bytes")
+                thisLogger().trace("gitpod: tunnel[$url]: received ${data.size} bytes")
             }
 
             connectToWebSocket(socketClient)
@@ -86,7 +86,7 @@ class GitpodWebSocketTunnelServer(
             while (inputStream.read(buffer).also { read = it } != -1) {
                 // Forward data from TCP to WebSocket
                 socketClient.sendData(buffer.copyOfRange(0, read))
-                thisLogger().info("gitpod: tunnel[$url]: sent $read bytes")
+                thisLogger().trace("gitpod: tunnel[$url]: sent $read bytes")
             }
         } catch (t: Throwable) {
             if (t is SocketException && t.message?.contains("Socket closed") == true) {
@@ -109,7 +109,7 @@ class GitpodWebSocketTunnelServer(
             }
             val proxyAddress = proxy.address()
             if (proxyAddress !is InetSocketAddress) {
-                thisLogger().info("gitpod: tunnel[$url]: unexpected proxy: $proxy")
+                thisLogger().warn("gitpod: tunnel[$url]: unexpected proxy: $proxy")
                 continue
             }
             val hostName = proxyAddress.hostString
@@ -134,6 +134,7 @@ class GitpodWebSocketTunnelServer(
             .configurator(object : Configurator() {
                 override fun beforeRequest(headers: MutableMap<String, List<String>>) {
                     headers["x-gitpod-owner-token"] = Collections.singletonList(ownerToken)
+                    headers["user-agent"] = Collections.singletonList("gitpod-toolbox")
                 }
             })
             .build()

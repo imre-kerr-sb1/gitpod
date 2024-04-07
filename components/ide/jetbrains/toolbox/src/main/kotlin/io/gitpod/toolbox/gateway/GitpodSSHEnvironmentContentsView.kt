@@ -1,5 +1,6 @@
 package io.gitpod.toolbox.gateway
 
+import com.jetbrains.toolbox.gateway.environments.CachedIdeStub
 import com.jetbrains.toolbox.gateway.environments.ManualEnvironmentContentsView
 import com.jetbrains.toolbox.gateway.environments.SshEnvironmentContentsView
 import com.jetbrains.toolbox.gateway.ssh.SshConnectionInfo
@@ -16,7 +17,6 @@ class GitpodSSHEnvironmentContentsView(
     private val authManager: GitpodAuthManager,
     private val workspaceId: String,
     private val publicApi: GitpodPublicApiManager,
-    private val httpClient: OkHttpClient,
 ) : SshEnvironmentContentsView, ManualEnvironmentContentsView {
     private var cancel = {}
     private val stateListeners = mutableSetOf<ManualEnvironmentContentsView.Listener>()
@@ -24,11 +24,12 @@ class GitpodSSHEnvironmentContentsView(
     private val logger = LoggerFactory.getLogger(javaClass)
 
     override fun getConnectionInfo(): CompletableFuture<SshConnectionInfo> {
+//        stateListeners.forEach {
+//        }
         return Utils.coroutineScope.future {
-            val provider = GitpodConnectionProvider(authManager, workspaceId, publicApi, httpClient)
+            val provider = GitpodConnectionProvider(authManager, workspaceId, publicApi)
             logger.info("==================connect $workspaceId")
             val (connInfo, cancel) = provider.connect()
-//            Utils.sshConnectionValidator.validate(connInfo).wait()
             this@GitpodSSHEnvironmentContentsView.cancel = cancel
             logger.info("==================connect info $connInfo")
             return@future connInfo

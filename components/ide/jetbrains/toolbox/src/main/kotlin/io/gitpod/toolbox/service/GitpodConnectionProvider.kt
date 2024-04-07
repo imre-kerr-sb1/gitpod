@@ -7,14 +7,12 @@ import com.jetbrains.toolbox.gateway.ssh.SshConnectionInfo
 import io.gitpod.publicapi.v1.WorkspaceOuterClass
 import io.gitpod.toolbox.auth.GitpodAuthManager
 import kotlinx.serialization.Serializable
-import okhttp3.OkHttpClient
 import java.net.Proxy
 
 class GitpodConnectionProvider(
     private val authManager: GitpodAuthManager,
     private val workspaceId: String,
     private val publicApi: GitpodPublicApiManager,
-    private val httpClient: OkHttpClient,
 ) {
     private val activeConnections = ConcurrentHashMap<String, Boolean>()
 
@@ -58,8 +56,8 @@ class GitpodConnectionProvider(
 
         // TODO: Check if proxy works
         val proxyList = mutableListOf<Proxy>()
-        if (httpClient.proxy != null && httpClient.proxy != Proxy.NO_PROXY) {
-            proxyList.add(httpClient.proxy!!)
+        if (Utils.httpClient.proxy != null && Utils.httpClient.proxy != Proxy.NO_PROXY) {
+            proxyList.add(Utils.httpClient.proxy!!)
         }
         val server =
             GitpodWebSocketTunnelServer("wss://${workspaceHost}/_supervisor/tunnel/ssh", ownerToken, proxyList)
@@ -87,12 +85,12 @@ class GitpodWebSocketSshConnectionInfo(
 
 data class ConnectParams(
     val gitpodHost: String,
-    val actualWorkspaceId: String,
+    val workspaceId: String,
     val debugWorkspace: Boolean = false,
 ) {
-    val resolvedWorkspaceId = "${if (debugWorkspace) "debug-" else ""}$actualWorkspaceId"
+    val resolvedWorkspaceId = "${if (debugWorkspace) "debug-" else ""}$workspaceId"
     val title = "$resolvedWorkspaceId ($gitpodHost)"
-    val uniqueID = "$gitpodHost-$actualWorkspaceId-$debugWorkspace"
+    val uniqueID = "$gitpodHost-$workspaceId-$debugWorkspace"
 }
 
 @Serializable

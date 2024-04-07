@@ -9,8 +9,12 @@ import com.connectrpc.protocols.NetworkProtocol
 import io.gitpod.publicapi.v1.*
 import io.gitpod.toolbox.auth.GitpodAccount
 import io.gitpod.toolbox.auth.GitpodAuthManager
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
+import okhttp3.OkHttpClient
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
+import java.time.Duration
 
 class GitpodPublicApiManager(val authManger: GitpodAuthManager) {
     private var workspaceApi: WorkspaceServiceClientInterface? = null
@@ -35,6 +39,7 @@ class GitpodPublicApiManager(val authManger: GitpodAuthManager) {
     fun setup() {
         val account = authManger.getCurrentAccount() ?: return
         this.account = account
+        logger.debug("setup papi client ${account.getHost()}")
         val client = createClient(account.getHost(), account.getCredentials())
         workspaceApi = WorkspaceServiceClient(client)
         organizationApi = OrganizationServiceClient(client)
@@ -64,25 +69,28 @@ class GitpodPublicApiManager(val authManger: GitpodAuthManager) {
             .setMetadata(meta)
             .setContextUrl(contextInfo)
         val resp = workspaceApi.createAndStartWorkspace(req.build())
-        val workspace = this.handleResp("createWorkspace", resp).workspace
-        Utils.dataManager.stealWorkspaceListData()
-        return workspace
+        return this.handleResp("createWorkspace", resp).workspace
     }
 
-    suspend fun watchWorkspace(workspaceId: String?, consumer: (String, WorkspaceOuterClass.WorkspaceStatus) -> Unit) {
+    fun watchWorkspace(workspaceId: String?, consumer: (String, WorkspaceOuterClass.WorkspaceStatus) -> Unit): Job {
         val workspaceApi = workspaceApi ?: throw IllegalStateException("No client")
-        val req = WorkspaceOuterClass.WatchWorkspaceStatusRequest.newBuilder()
-        if (!workspaceId.isNullOrEmpty()) {
-            req.setWorkspaceId(workspaceId)
+        return Utils.coroutineScope.launch {
+            val req = WorkspaceOuterClass.WatchWorkspaceStatusRequest.newBuilder()
+            if (!workspaceId.isNullOrEmpty()) {
+                req.setWorkspaceId(workspaceId)
+            }
+            val stream = workspaceApi.watchWorkspaceStatus()
+            stream.sendAndClose(req.build())
+            val chan = stream.responseChannel()
+            try {
+                for (response in chan) {
+                    consumer(response.workspaceId, response.status)
+                }
+            }
+            finally {
+                chan.cancel()
+            }
         }
-        logger.info("==============watch $workspaceId")
-        val stream = workspaceApi.watchWorkspaceStatus()
-        stream.sendAndClose(req.build())
-        for (response in stream.responseChannel()) {
-            logger.info("==============watch $workspaceId ${response.status.phase.name.name}")
-            consumer(response.workspaceId, response.status)
-        }
-        logger.info("==============watch $workspaceId stop")
     }
 
     suspend fun listWorkspaces(): WorkspaceOuterClass.ListWorkspacesResponse {
@@ -124,9 +132,11 @@ class GitpodPublicApiManager(val authManger: GitpodAuthManager) {
 
     companion object {
         fun createClient(gitpodHost: String, token: String): ProtocolClient {
+            // TODO: 6m?
+            val client = Utils.httpClient.newBuilder().readTimeout(Duration.ofMinutes(6)).build()
             val authInterceptor = AuthorizationInterceptor(token)
             return ProtocolClient(
-                httpClient = ConnectOkHttpClient(),
+                httpClient = ConnectOkHttpClient(client),
                 ProtocolClientConfig(
                     host = "$gitpodHost/public-api",
                     serializationStrategy = GoogleJavaProtobufStrategy(), // Or GoogleJavaJSONStrategy for JSON.
