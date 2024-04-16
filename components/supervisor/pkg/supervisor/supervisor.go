@@ -1028,11 +1028,6 @@ func buildChildProcEnv(cfg *Config, envvars []string, runGP bool) []string {
 	envs["HOME"] = "/home/gitpod"
 	envs["USER"] = "gitpod"
 
-	// Particular Java optimisation: Java pre v10 did not gauge it's available memory correctly, and needed explicitly setting "-Xmx" for all Hotspot/openJDK VMs
-	if mem, ok := envs["GITPOD_MEMORY"]; ok {
-		envs["JAVA_TOOL_OPTIONS"] += fmt.Sprintf(" -Xmx%sm", mem)
-	}
-
 	if _, ok := envs["HISTFILE"]; !ok {
 		envs["HISTFILE"] = "/workspace/.gitpod/.shell_history"
 		envs["PROMPT_COMMAND"] = "history -a"
