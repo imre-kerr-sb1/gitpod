@@ -7,11 +7,13 @@ package io.gitpod.toolbox.service
 import com.jetbrains.toolbox.gateway.PluginSettingsStore
 import com.jetbrains.toolbox.gateway.ToolboxServiceLocator
 import com.jetbrains.toolbox.gateway.connection.ClientHelper
+import com.jetbrains.toolbox.gateway.connection.ToolboxProxySettings
 import com.jetbrains.toolbox.gateway.ssh.validation.SshConnectionValidator
 import com.jetbrains.toolbox.gateway.ui.ObservablePropertiesFactory
 import com.jetbrains.toolbox.gateway.ui.ToolboxUi
 import kotlinx.coroutines.CoroutineScope
 import okhttp3.OkHttpClient
+import java.net.Proxy
 import java.util.concurrent.atomic.AtomicBoolean
 
 object Utils {
@@ -22,6 +24,7 @@ object Utils {
     lateinit var httpClient: OkHttpClient private set
     lateinit var clientHelper: ClientHelper private set
     lateinit var observablePropertiesFactory: ObservablePropertiesFactory private set
+    lateinit var proxySettings: ToolboxProxySettings private set
 
     lateinit var dataManager: DataManager private set
 
@@ -40,11 +43,20 @@ object Utils {
         httpClient = serviceLocator.getService(OkHttpClient::class.java)
         clientHelper = serviceLocator.getService(ClientHelper::class.java)
         observablePropertiesFactory = serviceLocator.getService(ObservablePropertiesFactory::class.java)
+        proxySettings = serviceLocator.getService(ToolboxProxySettings::class.java)
         dataManager = DataManager()
     }
 
     fun openUrl(url: String) {
         toolboxUi.openUrl(url)
+    }
+
+    fun getProxyList(): List<Proxy> {
+        val proxyList = mutableListOf<Proxy>()
+        if (proxySettings.proxy != null && proxySettings.proxy != Proxy.NO_PROXY) {
+            proxyList.add(proxySettings.proxy!!)
+        }
+        return proxyList
     }
 
     private val isInitialized = AtomicBoolean(false)

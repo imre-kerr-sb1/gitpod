@@ -10,7 +10,6 @@ import com.jetbrains.toolbox.gateway.ssh.SshConnectionInfo
 import io.gitpod.publicapi.v1.WorkspaceOuterClass
 import io.gitpod.toolbox.auth.GitpodAuthManager
 import kotlinx.serialization.Serializable
-import java.net.Proxy
 
 class GitpodConnectionProvider(
     private val authManager: GitpodAuthManager,
@@ -56,14 +55,8 @@ class GitpodConnectionProvider(
         }
 
         val workspaceHost = URI.create(workspace.status.workspaceUrl).host
-
-        // TODO: Check if proxy works
-        val proxyList = mutableListOf<Proxy>()
-        if (Utils.httpClient.proxy != null && Utils.httpClient.proxy != Proxy.NO_PROXY) {
-            proxyList.add(Utils.httpClient.proxy!!)
-        }
         val server =
-            GitpodWebSocketTunnelServer("wss://${workspaceHost}/_supervisor/tunnel/ssh", ownerToken, proxyList)
+            GitpodWebSocketTunnelServer("wss://${workspaceHost}/_supervisor/tunnel/ssh", ownerToken)
 
         val cancelServer = server.start()
 

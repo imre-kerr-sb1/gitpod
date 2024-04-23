@@ -26,14 +26,10 @@ class GitpodSSHEnvironmentContentsView(
     private val logger = LoggerFactory.getLogger(javaClass)
 
     override fun getConnectionInfo(): CompletableFuture<SshConnectionInfo> {
-//        stateListeners.forEach {
-//        }
         return Utils.coroutineScope.future {
             val provider = GitpodConnectionProvider(authManager, workspaceId, publicApi)
-            logger.info("==================connect $workspaceId")
             val (connInfo, cancel) = provider.connect()
             this@GitpodSSHEnvironmentContentsView.cancel = cancel
-            logger.info("==================connect info $connInfo")
             return@future connInfo
         }
     }
@@ -47,7 +43,6 @@ class GitpodSSHEnvironmentContentsView(
     }
 
     override fun close() {
-        logger.info("==================close $workspaceId")
         cancel()
     }
 }

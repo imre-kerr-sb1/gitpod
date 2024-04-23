@@ -25,7 +25,6 @@ import javax.websocket.MessageHandler.Partial
 class GitpodWebSocketTunnelServer(
     private val url: String,
     private val ownerToken: String,
-    private val proxies: List<Proxy>,
 ) {
     private val serverSocket = ServerSocket(0) // pass 0 to have the system choose a free port
     private val logger = LoggerFactory.getLogger(javaClass)
@@ -107,6 +106,7 @@ class GitpodWebSocketTunnelServer(
         val ssl: SslContextFactory = SslContextFactory.Client()
         ssl.sslContext = SSLContext.getDefault()
         val httpClient = HttpClient(ssl)
+        val proxies = Utils.getProxyList()
         for (proxy in proxies) {
             if (proxy.type() == Proxy.Type.DIRECT) {
                 continue
