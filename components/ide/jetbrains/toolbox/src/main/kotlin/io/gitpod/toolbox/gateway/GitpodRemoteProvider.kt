@@ -105,17 +105,14 @@ class GitpodRemoteProvider(
         val orgId = account.organizationId
         logger.info("user logged in, current selected org: $orgId")
         if (orgId != null) {
-            logger.info("try startWatchWorkspaces.1")
             Utils.dataManager.startWatchWorkspaces(publicApi)
         } else {
             Utils.coroutineScope.launch {
-                kotlinx.coroutines.delay(3000)
                 organizationPage.loadData()
                 Utils.toolboxUi.showUiPage(organizationPage)
             }
         }
         authManger.getCurrentAccount()?.onOrgSelected {
-            logger.info("try startWatchWorkspaces.2")
             Utils.dataManager.startWatchWorkspaces(publicApi)
         }
     }
@@ -163,7 +160,10 @@ class GitpodRemoteProvider(
                 }
             },
             SimpleButton("Select organization") {
-
+                Utils.coroutineScope.launch {
+                    organizationPage.loadData()
+                    Utils.toolboxUi.showUiPage(organizationPage)
+                }
             }
         )
     }

@@ -13,19 +13,16 @@ import io.gitpod.publicapi.v1.OrganizationOuterClass
 import io.gitpod.toolbox.components.AbstractUiPage
 import io.gitpod.toolbox.service.GitpodPublicApiManager
 import io.gitpod.toolbox.service.Utils
-import kotlinx.coroutines.launch
 import java.util.function.Consumer
 
 class GitpodOrganizationPage(val authManager: GitpodAuthManager, val publicApi: GitpodPublicApiManager) :
     AbstractUiPage() {
-
     private var organizations = emptyList<OrganizationOuterClass.Organization>()
     private lateinit var orgField: AutocompleteTextField
 
-    fun loadData() {
-        Utils.coroutineScope.launch {
-            organizations = publicApi.listOrganizations()
-        }
+
+    suspend fun loadData() {
+        organizations = publicApi.listOrganizations()
     }
 
     private fun getOrgField() = run {
@@ -33,9 +30,11 @@ class GitpodOrganizationPage(val authManager: GitpodAuthManager, val publicApi: 
         options.addAll(organizations.map { org ->
             MenuItem(org.name, null, null) {
                 authManager.getCurrentAccount()?.organizationId = org.id
+                Utils.toolboxUi.hideUiPage(this)
             }
         })
-        AutocompleteTextField("Organization", authManager.getCurrentAccount()?.organizationId ?: "", options, 1.0f) {
+        val orgName = organizations.find { it.id == authManager.getCurrentAccount()?.organizationId }?.name ?: ""
+        AutocompleteTextField("Organization", orgName, options, 1.0f) {
             if (it.isNullOrEmpty()) {
                 ValidationResult.Invalid("Organization is required")
             }

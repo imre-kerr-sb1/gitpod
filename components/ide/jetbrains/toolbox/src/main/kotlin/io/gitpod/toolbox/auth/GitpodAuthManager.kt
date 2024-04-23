@@ -146,8 +146,7 @@ class GitpodAccount(
     private fun getStoreKey(key: String) = "USER:${id}:${key}"
 
     var organizationId: String?
-        get() = "ed51b786-24c7-4e58-b977-ef08b300a4bd"
-//        get() = Utils.settingStore[getStoreKey("ORG")]
+        get() = Utils.settingStore[getStoreKey("ORG")]
         set(value){
             if (value == null) {
                 return
