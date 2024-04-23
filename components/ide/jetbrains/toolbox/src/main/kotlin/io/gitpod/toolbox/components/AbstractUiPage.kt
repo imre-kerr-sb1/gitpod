@@ -13,14 +13,12 @@ import java.util.function.Function
 abstract class AbstractUiPage : UiPage {
     private var stateSetter: BiConsumer<UiField, Any>? = null
     private var stateGetter: Function<UiField, *>? = null
-    private var resultSetter: Consumer<Any>? = null
-    private var errorSetter: Consumer<String>? = null
+    private var errorSetter: Consumer<Throwable>? = null
 
     @Suppress("UNCHECKED_CAST")
     fun <T> getFieldValue(field: UiField) = stateGetter?.apply(field) as T?
     fun setFieldValue(field: UiField, value: Any) = stateSetter?.accept(field, value)
-    fun setActionResultMessage(result: Any) = resultSetter?.accept(result)
-    fun setActionErrorMessage(error: String) = errorSetter?.accept(error)
+    fun setActionErrorMessage(error: String) = errorSetter?.accept(Throwable(error))
 
     override fun setStateAccessor(setter: BiConsumer<UiField, Any>?, getter: Function<UiField, *>?) {
         super.setStateAccessor(setter, getter)
@@ -28,13 +26,7 @@ abstract class AbstractUiPage : UiPage {
         stateSetter = setter
     }
 
-    override fun setActionResultAccessor(setter: Consumer<Any>?) {
-        super.setActionResultAccessor(setter)
-        resultSetter = setter
-    }
-
-
-    override fun setActionErrorNotifier(notifier: Consumer<String>?) {
+    override fun setActionErrorNotifier(notifier: Consumer<Throwable>?) {
         super.setActionErrorNotifier(notifier)
         errorSetter = notifier
     }

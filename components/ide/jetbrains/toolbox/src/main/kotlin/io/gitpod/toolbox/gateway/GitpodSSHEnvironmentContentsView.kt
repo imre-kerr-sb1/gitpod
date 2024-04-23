@@ -4,7 +4,6 @@
 
 package io.gitpod.toolbox.gateway
 
-import com.jetbrains.toolbox.gateway.environments.CachedIdeStub
 import com.jetbrains.toolbox.gateway.environments.ManualEnvironmentContentsView
 import com.jetbrains.toolbox.gateway.environments.SshEnvironmentContentsView
 import com.jetbrains.toolbox.gateway.ssh.SshConnectionInfo
@@ -13,7 +12,6 @@ import io.gitpod.toolbox.service.GitpodConnectionProvider
 import io.gitpod.toolbox.service.GitpodPublicApiManager
 import io.gitpod.toolbox.service.Utils
 import kotlinx.coroutines.future.future
-import okhttp3.OkHttpClient
 import org.slf4j.LoggerFactory
 import java.util.concurrent.CompletableFuture
 

@@ -4,7 +4,6 @@
 
 package io.gitpod.toolbox.gateway
 
-import com.jetbrains.toolbox.gateway.EnvironmentVisibilityState
 import com.jetbrains.toolbox.gateway.ProviderVisibilityState
 import com.jetbrains.toolbox.gateway.RemoteEnvironmentConsumer
 import com.jetbrains.toolbox.gateway.RemoteProvider

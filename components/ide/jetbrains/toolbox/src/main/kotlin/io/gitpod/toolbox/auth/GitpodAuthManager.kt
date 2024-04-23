@@ -15,7 +15,6 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
-import okhttp3.OkHttpClient
 import org.slf4j.LoggerFactory
 import java.net.URI
 import java.util.*
@@ -89,6 +88,7 @@ class GitpodAuthManager {
         if (!this.manager.canHandle(uri)) {
             return false
         }
+        Utils.toolboxUi.showWindow()
         this.manager.handle(uri)
         return true
     }
@@ -146,7 +146,7 @@ class GitpodAccount(
     private fun getStoreKey(key: String) = "USER:${id}:${key}"
 
     var organizationId: String?
-        get() = "03c83295-cc1c-49c4-93e1-c6d94638292d"
+        get() = "ed51b786-24c7-4e58-b977-ef08b300a4bd"
 //        get() = Utils.settingStore[getStoreKey("ORG")]
         set(value){
             if (value == null) {

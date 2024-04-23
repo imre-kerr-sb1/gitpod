@@ -11,14 +11,17 @@ import com.jetbrains.toolbox.gateway.environments.ManualEnvironmentContentsView
 import com.jetbrains.toolbox.gateway.environments.SshEnvironmentContentsView
 import com.jetbrains.toolbox.gateway.ssh.SshConnectionInfo
 import com.jetbrains.toolbox.gateway.states.StandardRemoteEnvironmentState
+import com.jetbrains.toolbox.gateway.ui.ActionDescription
 import com.jetbrains.toolbox.gateway.ui.ActionListener
+import com.jetbrains.toolbox.gateway.ui.ObservableList
 import io.gitpod.toolbox.service.Utils
 import kotlinx.coroutines.launch
 import java.util.concurrent.CompletableFuture
 
 class ColimaTestEnvironment() : AbstractRemoteProviderEnvironment() {
     private val actionListeners = mutableSetOf<ActionListener>()
-    private val contentsViewFuture: CompletableFuture<EnvironmentContentsView> = CompletableFuture.completedFuture(ColimaSSHEnvironmentContentsView())
+    private val contentsViewFuture: CompletableFuture<EnvironmentContentsView> =
+        CompletableFuture.completedFuture(ColimaSSHEnvironmentContentsView())
 
     init {
         Utils.coroutineScope.launch {
@@ -36,20 +39,17 @@ class ColimaTestEnvironment() : AbstractRemoteProviderEnvironment() {
 
     }
 
-    override fun registerActionListener(p0: ActionListener) {
-        actionListeners += p0
+    override fun getActionList(): ObservableList<ActionDescription> {
+        return Utils.observablePropertiesFactory.emptyObservableList()
     }
 
-    override fun unregisterActionListener(p0: ActionListener) {
-        actionListeners -= p0
-    }
 }
 
-class ColimaSSHEnvironmentContentsView: SshEnvironmentContentsView, ManualEnvironmentContentsView {
+class ColimaSSHEnvironmentContentsView : SshEnvironmentContentsView, ManualEnvironmentContentsView {
     private val listenerSet = mutableSetOf<ManualEnvironmentContentsView.Listener>()
 
     override fun getConnectionInfo(): CompletableFuture<SshConnectionInfo> {
-        return CompletableFuture.completedFuture(object: SshConnectionInfo {
+        return CompletableFuture.completedFuture(object : SshConnectionInfo {
             override fun getHost(): String = "127.0.0.1"
             override fun getPort() = 51710
             override fun getUserName() = "hwen"

@@ -15,12 +15,11 @@ import io.gitpod.toolbox.auth.GitpodAccount
 import io.gitpod.toolbox.auth.GitpodAuthManager
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
-import okhttp3.OkHttpClient
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.time.Duration
 
-class GitpodPublicApiManager(val authManger: GitpodAuthManager) {
+class GitpodPublicApiManager(private val authManger: GitpodAuthManager) {
     private var workspaceApi: WorkspaceServiceClientInterface? = null
     private var organizationApi: OrganizationServiceClientInterface? = null
     private var userApi: UserServiceClientInterface? = null

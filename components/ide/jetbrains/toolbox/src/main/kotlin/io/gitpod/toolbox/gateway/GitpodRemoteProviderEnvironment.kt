@@ -9,7 +9,7 @@ import com.jetbrains.toolbox.gateway.EnvironmentVisibilityState
 import com.jetbrains.toolbox.gateway.environments.EnvironmentContentsView
 import com.jetbrains.toolbox.gateway.states.StandardRemoteEnvironmentState
 import com.jetbrains.toolbox.gateway.ui.ActionDescription
-import com.jetbrains.toolbox.gateway.ui.ActionListener
+import com.jetbrains.toolbox.gateway.ui.ObservableList
 import io.gitpod.publicapi.v1.WorkspaceOuterClass
 import io.gitpod.publicapi.v1.WorkspaceOuterClass.WorkspacePhase
 import io.gitpod.toolbox.auth.GitpodAuthManager
@@ -28,7 +28,7 @@ class GitpodRemoteProviderEnvironment(
     private val publicApi: GitpodPublicApiManager,
 ) : AbstractRemoteProviderEnvironment() {
     private val logger = LoggerFactory.getLogger(javaClass)
-    private val actionListeners = mutableSetOf<ActionListener>()
+    private val actionList = Utils.observablePropertiesFactory.emptyObservableList<ActionDescription>();
     private val contentsViewFuture: CompletableFuture<EnvironmentContentsView> = CompletableFuture.completedFuture(
         GitpodSSHEnvironmentContentsView(
             authManager,
@@ -81,7 +81,8 @@ class GitpodRemoteProviderEnvironment(
                         logger.info("===============stop workspace clicked")
                     }
                 }
-                actionListeners.forEach { it.onActionListChanged(actions) }
+                actionList.clear()
+                actionList.addAll(actions)
                 listenerSet.forEach { it.consume(state) }
             }
         }
@@ -96,13 +97,7 @@ class GitpodRemoteProviderEnvironment(
 
     }
 
-    override fun registerActionListener(p0: ActionListener) {
-        actionListeners += p0
-    }
-
-    override fun unregisterActionListener(p0: ActionListener) {
-        actionListeners -= p0
-    }
+    override fun getActionList(): ObservableList<ActionDescription> = actionList
 }
 
 
