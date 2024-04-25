@@ -11,7 +11,6 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
-	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -26,10 +25,6 @@ import (
 	"github.com/gitpod-io/gitpod/test/pkg/integration"
 	wsmanapi "github.com/gitpod-io/gitpod/ws-manager/api"
 	"github.com/google/go-github/v42/github"
-)
-
-var (
-	inCompatiblePattern = regexp.MustCompile(`Plugin 'Gitpod Remote' .* is not compatible`)
 )
 
 type GatewayHostStatus struct {
