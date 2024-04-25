@@ -177,7 +177,7 @@ func JetBrainsIDETest(ctx context.Context, t *testing.T, cfg *envconf.Config, id
 			Command: "bash",
 			Args: []string{
 				"-c",
-				fmt.Sprintf("cat /workspace/.cache/JetBrains%s/RemoteDev-IU/log/idea.log", qualifier),
+				fmt.Sprintf("test -f /workspace/.cache/JetBrains%s/RemoteDev-IU/log/idea.log", qualifier),
 			},
 		}, &resp)
 
@@ -188,22 +188,12 @@ func JetBrainsIDETest(ctx context.Context, t *testing.T, cfg *envconf.Config, id
 		if resp.ExitCode != 0 {
 			t.Fatal("idea.log file not found in the expected location")
 		}
-		// Check incompatible plugin, relates EXP-1835, EXP-1834
-		t.Log("Check incompatible plugin log")
-		output := resp.Stdout
-		lines := strings.Split(output, "\n")
-		for _, line := range lines {
-			if inCompatiblePattern.Match([]byte(line)) {
-				t.Fatalf("incompatible plugin found: %s", line)
-			}
-		}
-		t.Logf("incompatible log not exists")
-
 	}
 
-	checkBackendPluginStarted := func() {
-		logFile := "/var/log/gitpod/jb-backend-started.log"
-		t.Logf("Check backend plugin is started %s", logFile)
+	// check log analyzer rules
+	//
+	checkIDEALogAnalyzerResults := func(task, logFile string, shouldExist bool) {
+		t.Logf("%s: %s", task, logFile)
 
 		var resp agent.ExecResponse
 		err = rsa.Call("WorkspaceAgent.Exec", &agent.ExecRequest{
@@ -211,19 +201,30 @@ func JetBrainsIDETest(ctx context.Context, t *testing.T, cfg *envconf.Config, id
 			Command: "bash",
 			Args: []string{
 				"-c",
-				fmt.Sprintf("test -f %s", logFile),
+				fmt.Sprintf("cat %s", logFile),
 			},
 		}, &resp)
 		if err != nil {
 			t.Fatal(err)
 		}
 		if resp.ExitCode == 0 {
-			t.Logf("backend plugin is started")
+			if shouldExist {
+				t.Logf("%s: found, passed, content: %s", task, resp.Stdout)
+			} else {
+				t.Fatalf("%s: expect %s to not exist, content: %s", task, logFile, resp.Stdout)
+			}
 		} else {
-			t.Fatalf("backend plugin is not started")
+			if shouldExist {
+				t.Fatalf("%s: expect %s to exist %s", task, logFile, resp.Stderr)
+			} else {
+				t.Logf("%s: notfound, passed", task)
+			}
 		}
 	}
-	checkBackendPluginStarted()
+	// see components/ide/jetbrains/launcher/log_analyzer.go
+	checkIDEALogAnalyzerResults("PluginIncompatible", "/var/log/gitpod/jb-backend-incompatible.log", false)
+	checkIDEALogAnalyzerResults("PluginLoaded", "/var/log/gitpod/jb-backend-loaded.log", true)
+	checkIDEALogAnalyzerResults("PluginStarted", "/var/log/gitpod/jb-backend-started.log", true)
 
 	ts := oauth2.StaticTokenSource(
 		&oauth2.Token{AccessToken: roboquatToken},
