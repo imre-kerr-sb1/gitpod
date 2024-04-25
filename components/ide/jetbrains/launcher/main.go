@@ -515,13 +515,14 @@ func run(launchCtx *LaunchContext) {
 
 	cmd := remoteDevServerCmd(args, launchCtx, true)
 
-	diagnostic := LauncherLogAnalyzer{}
-	if err := diagnostic.Analyze(cmd, "jb-launcher.log"); err != nil {
+	analyzer := NewLauncherLogAnalyzer(cmd)
+	analyzerCtx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	if err := analyzer.Analyze(analyzerCtx); err != nil {
 		log.WithError(err).Error("failed to start log diagnostic")
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
-	} else {
-		defer diagnostic.Stop()
+		cancel()
 	}
 
 	cmd.Env = append(cmd.Env, "JETBRAINS_GITPOD_BACKEND_KIND="+launchCtx.alias)

@@ -11,6 +11,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -25,6 +26,10 @@ import (
 	"github.com/gitpod-io/gitpod/test/pkg/integration"
 	wsmanapi "github.com/gitpod-io/gitpod/ws-manager/api"
 	"github.com/google/go-github/v42/github"
+)
+
+var (
+	inCompatiblePattern = regexp.MustCompile(`Plugin 'Gitpod Remote' .* is not compatible`)
 )
 
 type GatewayHostStatus struct {
@@ -172,7 +177,7 @@ func JetBrainsIDETest(ctx context.Context, t *testing.T, cfg *envconf.Config, id
 			Command: "bash",
 			Args: []string{
 				"-c",
-				fmt.Sprintf("test -f /workspace/.cache/JetBrains%s/RemoteDev-IU/log/idea.log", qualifier),
+				fmt.Sprintf("cat /workspace/.cache/JetBrains%s/RemoteDev-IU/log/idea.log", qualifier),
 			},
 		}, &resp)
 
@@ -183,30 +188,14 @@ func JetBrainsIDETest(ctx context.Context, t *testing.T, cfg *envconf.Config, id
 		if resp.ExitCode != 0 {
 			t.Fatal("idea.log file not found in the expected location")
 		}
-	}
-
-	// Check incompatible plugin, relates EXP-1835, EXP-1834
-	checkIncompatiblePlugin := func() {
-		logFile := "/var/log/gitpod/jb-plugin-incompatible.log"
-		t.Logf("Check incompatible plugin log file %s", logFile)
-
-		var resp agent.ExecResponse
-		err = rsa.Call("WorkspaceAgent.Exec", &agent.ExecRequest{
-			Dir:     "/",
-			Command: "bash",
-			Args: []string{
-				"-c",
-				fmt.Sprintf("cat %s", logFile),
-			},
-		}, &resp)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if resp.ExitCode == 0 {
-			t.Fatalf("incompatible plugin found in: %s", resp.Stdout)
+		t.Log("Check incompatible plugin log")
+		output := resp.Stdout
+		if inCompatiblePattern.Match([]byte(output)) {
+			t.Fatalf("incompatible plugin found: %s", output)
+		} else {
+			t.Logf("incompatible log not exists")
 		}
 	}
-	checkIncompatiblePlugin()
 
 	ts := oauth2.StaticTokenSource(
 		&oauth2.Token{AccessToken: roboquatToken},

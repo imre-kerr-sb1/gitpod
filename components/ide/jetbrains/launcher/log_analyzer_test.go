@@ -5,16 +5,32 @@
 package main
 
 import (
+	"context"
+	"fmt"
+	"os"
 	"os/exec"
 	"testing"
+	"time"
 )
 
-func TestLauncherLogDiagnostic_Diagnostic(t *testing.T) {
+const (
+	TestInCompatibleString = "The Gitpod Remote (id=io.gitpod.jetbrains.remote, path=/workspace/.config/JetBrains/RemoteDev-PS/plugins/gitpod-remote, version=0.0.1-stable) plugin Plugin 'Gitpod Remote' (version '0.0.1-stable') is not compatible with the current version of the IDE, because it requires build 241.15989 or newer but the current build is PS-241.14494.237"
+)
+
+func TestLauncherLogAnalyzer_Analyze(t *testing.T) {
 	t.Run("happy path", func(t *testing.T) {
-		l := &LauncherLogAnalyzer{}
-		cmd := exec.Command("echo", "The Gitpod Remote (id=io.gitpod.jetbrains.remote, path=/workspace/.config/JetBrains/RemoteDev-PS/plugins/gitpod-remote, version=0.0.1-stable) plugin Plugin 'Gitpod Remote' (version '0.0.1-stable') is not compatible with the current version of the IDE, because it requires build 241.15989 or newer but the current build is PS-241.14494.237")
-		if err := l.Analyze(cmd, "test.log"); err != nil {
-			t.Errorf("unexpected diagnostic error: %v", err)
+
+		cmd := exec.Command("bash", "-c", fmt.Sprintf(`
+sleep 0.2
+echo happy testing
+echo "%s"
+sleep 0.1
+`, TestInCompatibleString))
+		// cmd := exec.Command("echo", "The Gitpod Remote (id=io.gitpod.jetbrains.remote, path=/workspace/.config/JetBrains/RemoteDev-PS/plugins/gitpod-remote, version=0.0.1-stable) plugin Plugin 'Gitpod Remote' (version '0.0.1-stable') is not compatible with the current version of the IDE, because it requires build 241.15989 or newer but the current build is PS-241.14494.237")
+		l := NewLauncherLogAnalyzer(cmd)
+		ctx, cancel := context.WithCancel(context.Background())
+		if err := l.Analyze(ctx); err != nil {
+			t.Errorf("unexpected error: %v", err)
 		}
 		if err := cmd.Start(); err != nil {
 			t.Errorf("unexpected start error: %v", err)
@@ -22,7 +38,51 @@ func TestLauncherLogDiagnostic_Diagnostic(t *testing.T) {
 		if err := cmd.Wait(); err != nil {
 			t.Errorf("unexpected wait error: %v", err)
 		}
-		l.Stop()
+		time.Sleep(100 * time.Millisecond)
+		cancel()
+		if l.inCompatibleBackendPlugin != true {
+			t.Errorf("expected inCompatibleBackendPlugin to be true, but got false")
+		}
+	})
+}
+
+func TestIdeaLogFileAnalyzer_Analyze(t *testing.T) {
+	t.Run("happy path", func(t *testing.T) {
+		logPath := t.TempDir() + "/TestIdeaLogFileAnalyzer_Analyze.log"
+
+		appendLogs := func(writeCompatibleStr bool) {
+			tmpFile, err := os.OpenFile(logPath, os.O_APPEND|os.O_WRONLY, os.ModeAppend)
+			if err != nil {
+				t.Fatalf("failed to create temp file: %v", err)
+			}
+			defer tmpFile.Close()
+			if _, err = tmpFile.WriteString("happy testing\n"); err != nil {
+				t.Errorf("unexpected write error: %v", err)
+			}
+			if writeCompatibleStr {
+				if _, err = tmpFile.WriteString(TestInCompatibleString + "\n"); err != nil {
+					t.Errorf("unexpected write error: %v", err)
+				}
+			}
+		}
+
+		ctx, cancel := context.WithCancel(context.Background())
+		l := NewIdeaLogAnalyzer(logPath)
+		if err := l.Analyze(ctx); err != nil {
+			t.Errorf("unexpected error: %v", err)
+		}
+		time.Sleep(20 * time.Millisecond)
+		_, _ = os.Create(logPath)
+		defer os.Remove(logPath)
+
+		appendLogs(false)
+		time.Sleep(20 * time.Millisecond)
+		appendLogs(false)
+		time.Sleep(20 * time.Millisecond)
+		appendLogs(true)
+		appendLogs(true)
+		time.Sleep(300 * time.Millisecond)
+		cancel()
 		if l.inCompatibleBackendPlugin != true {
 			t.Errorf("expected inCompatibleBackendPlugin to be true, but got false")
 		}
