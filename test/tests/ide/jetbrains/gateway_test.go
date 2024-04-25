@@ -191,11 +191,14 @@ func JetBrainsIDETest(ctx context.Context, t *testing.T, cfg *envconf.Config, id
 		// Check incompatible plugin, relates EXP-1835, EXP-1834
 		t.Log("Check incompatible plugin log")
 		output := resp.Stdout
-		if inCompatiblePattern.Match([]byte(output)) {
-			t.Fatalf("incompatible plugin found: %s", output)
-		} else {
-			t.Logf("incompatible log not exists")
+		lines := strings.Split(output, "\n")
+		for _, line := range lines {
+			if inCompatiblePattern.Match([]byte(line)) {
+				t.Fatalf("incompatible plugin found: %s", line)
+			}
 		}
+		t.Logf("incompatible log not exists")
+
 	}
 
 	checkBackendPluginStarted := func() {
