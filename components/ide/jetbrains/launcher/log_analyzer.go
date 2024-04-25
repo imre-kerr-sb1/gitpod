@@ -5,11 +5,8 @@
 package main
 
 import (
-	"bufio"
 	"context"
-	"io"
 	"os"
-	"os/exec"
 	"regexp"
 	"sync"
 
@@ -19,34 +16,52 @@ import (
 
 type LogAnalyzer interface {
 	Analyze(ctx context.Context) error
-	Wait()
 }
 
 const (
-	logDir                       = "/var/log/gitpod"
-	backendStartedPatternLogFile = "jb-backend-started.log"
+	logDir = "/var/log/gitpod"
 )
 
-var (
-	inCompatiblePattern   = regexp.MustCompile(`Plugin 'Gitpod Remote' .* is not compatible`)
-	backendStartedPattern = regexp.MustCompile(`Gitpod gateway link`)
-)
+type LineMatchRule struct {
+	Name           string         // rule name
+	Pattern        *regexp.Regexp // regex to match line
+	LogFile        string         // print matched line to log file
+	matchedHandler func()
+
+	matched bool
+}
 
 // IdeaLogFileAnalyzer watches the idea.log file and does diagnostic on the output
 type IdeaLogFileAnalyzer struct {
-	path                      string
-	inCompatibleBackendPlugin bool
-	wg                        sync.WaitGroup
-	launchCtx                 *LaunchContext
+	launchCtx *LaunchContext
+	path      string
+	rules     []*LineMatchRule
+	wg        sync.WaitGroup
 }
 
 var _ LogAnalyzer = &IdeaLogFileAnalyzer{}
 
 func NewIdeaLogAnalyzer(launchCtx *LaunchContext, path string) *IdeaLogFileAnalyzer {
-	return &IdeaLogFileAnalyzer{
+	ide := "unknown"
+	if launchCtx != nil {
+		ide = launchCtx.alias
+	}
+	l := &IdeaLogFileAnalyzer{
 		path:      path,
 		launchCtx: launchCtx,
+		rules: []*LineMatchRule{
+			{Name: "plugin started", Pattern: regexp.MustCompile(`Gitpod gateway link`), LogFile: "jb-backend-started.log", matchedHandler: func() {
+				AddBackendPluginStatus(ide, PluginStatusStarted)
+			}},
+			{Name: "plugin loaded", Pattern: regexp.MustCompile(`Loaded custom plugins: Gitpod Remote`), LogFile: "jb-backend-loaded.log", matchedHandler: func() {
+				AddBackendPluginStatus(ide, PluginStatusLoaded)
+			}},
+			{Name: "plugin incompatible", Pattern: regexp.MustCompile(`Plugin 'Gitpod Remote' .* is not compatible`), LogFile: "jb-backend-incompatible.log", matchedHandler: func() {
+				AddBackendPluginIncompatibleTotal(ide)
+			}},
+		},
 	}
+	return l
 }
 
 func (l *IdeaLogFileAnalyzer) Wait() {
@@ -66,26 +81,36 @@ func (l *IdeaLogFileAnalyzer) Analyze(ctx context.Context) error {
 			log.WithError(err).Error("failed to tail file")
 			return
 		}
+		defer func() {
+			_ = t.Stop()
+		}()
 
 		for {
 			select {
 			case line, ok := <-t.Lines:
 				if !ok {
-					log.Info("watcher chan closed")
+					log.Info("watcher chan closed11")
 					return
+				}
+				if f, err := os.OpenFile(logDir+"/test-idea.log", os.O_APPEND|os.O_WRONLY, os.ModeAppend); err != nil {
+					defer f.Close()
+					_, _ = f.WriteString(line.Text)
 				}
 				if line.Err != nil {
 					log.WithError(line.Err).Warn("error reading line")
 					continue
 				}
-				if !l.inCompatibleBackendPlugin && inCompatiblePattern.Match([]byte(line.Text)) {
-					l.inCompatibleBackendPlugin = true
-					AddBackendPluginIncompatibleTotal(getIdeName(l.launchCtx))
-					log.WithField("line", line).Error("backend plugin is not compatible")
+				for _, rule := range l.rules {
+					if rule.matched || !rule.Pattern.Match([]byte(line.Text)) {
+						continue
+					}
+					rule.matched = true
+					log.WithField("line", line.Text).WithField("rule", rule.Name).Info("matched rule")
+					writeToFile(rule.LogFile, line.Text)
+					rule.matchedHandler()
 				}
 			case <-ctx.Done():
-				log.Info("Stopping file watcher...")
-				_ = t.Stop()
+				log.Info("stopping file watcher")
 				return
 			}
 		}
@@ -93,62 +118,7 @@ func (l *IdeaLogFileAnalyzer) Analyze(ctx context.Context) error {
 	return nil
 }
 
-// LauncherLogAnalyzer pipes JetBrains remote-dev-server.sh 's stdout and
-// stderr into os.Stdout and os.Stderr, and does diagnostic on the output
-type LauncherLogAnalyzer struct {
-	reader                 *io.PipeReader
-	writer                 *io.PipeWriter
-	isBackendPluginStarted bool
-	cmd                    *exec.Cmd
-	wg                     sync.WaitGroup
-	launchCtx              *LaunchContext
-}
-
-func NewLauncherLogAnalyzer(launchCtx *LaunchContext, cmd *exec.Cmd) *LauncherLogAnalyzer {
-	return &LauncherLogAnalyzer{
-		cmd:       cmd,
-		launchCtx: launchCtx,
-	}
-}
-
-var _ LogAnalyzer = &LauncherLogAnalyzer{}
-
-func (l *LauncherLogAnalyzer) Analyze(ctx context.Context) error {
-	l.wg.Add(1)
-	reader, writer := io.Pipe()
-	l.reader = reader
-	l.writer = writer
-	stdout := io.MultiWriter(os.Stdout, writer)
-	stderr := io.MultiWriter(os.Stderr, writer)
-	l.cmd.Stdout = stdout
-	l.cmd.Stderr = stderr
-	go func() {
-		<-ctx.Done()
-		writer.Close()
-	}()
-	go l.doAnalyze()
-	return nil
-}
-
-func (l *LauncherLogAnalyzer) Wait() {
-	l.wg.Wait()
-}
-
-func (l *LauncherLogAnalyzer) doAnalyze() {
-	defer l.wg.Done()
-	scanner := bufio.NewScanner(l.reader)
-	for scanner.Scan() {
-		line := scanner.Text()
-		if !l.isBackendPluginStarted && backendStartedPattern.Match([]byte(line)) {
-			l.isBackendPluginStarted = true
-			AddBackendPluginStartedTotal(getIdeName(l.launchCtx))
-			log.WithField("line", line).Error("backend plugin is not compatible")
-			l.WriteToFile(backendStartedPatternLogFile, line)
-		}
-	}
-}
-
-func (l *LauncherLogAnalyzer) WriteToFile(fileName string, line string) {
+func writeToFile(fileName string, line string) {
 	f, err := os.OpenFile(logDir+"/"+fileName, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		log.WithError(err).Error("failed to open file")
@@ -158,11 +128,4 @@ func (l *LauncherLogAnalyzer) WriteToFile(fileName string, line string) {
 	if _, err := f.WriteString(line); err != nil {
 		log.WithError(err).Error("failed to write to file")
 	}
-}
-
-func getIdeName(ctx *LaunchContext) string {
-	if ctx == nil {
-		return "unknown"
-	}
-	return ctx.alias
 }

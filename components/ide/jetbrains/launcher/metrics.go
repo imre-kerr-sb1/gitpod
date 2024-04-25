@@ -19,7 +19,8 @@ import (
 )
 
 const (
-	BackendPluginIncompatibleName = "supervisor_jb_backend_plugin_incompatible_total"
+	BackendPluginIncompatibleMetric = "supervisor_jb_backend_plugin_incompatible_total"
+	BackendPluginStatusMetric       = "supervisor_jb_backend_plugin_status_total"
 )
 
 func AddBackendPluginIncompatibleTotal(ide string) {
@@ -28,16 +29,23 @@ func AddBackendPluginIncompatibleTotal(ide string) {
 		log.Error("no GITPOD_HOST env")
 		return
 	}
-	doAddCounter(host, BackendPluginIncompatibleName, map[string]string{"ide": ide}, 1)
+	doAddCounter(host, BackendPluginIncompatibleMetric, map[string]string{"ide": ide}, 1)
 }
 
-func AddBackendPluginStartedTotal(ide string) {
+type PluginStatus string
+
+const (
+	PluginStatusLoaded  = "loaded"
+	PluginStatusStarted = "started"
+)
+
+func AddBackendPluginStatus(ide string, status PluginStatus) {
 	host := os.Getenv("GITPOD_HOST")
 	if host == "" {
 		log.Error("no GITPOD_HOST env")
 		return
 	}
-	// TODO:
+	doAddCounter(host, BackendPluginStatusMetric, map[string]string{"ide": ide, "status": string(status)}, 1)
 }
 
 func doAddCounter(gitpodHost string, name string, labels map[string]string, value uint64) {
@@ -62,7 +70,7 @@ func doAddCounter(gitpodHost string, name string, labels map[string]string, valu
 		return
 	}
 	request.Header.Set("Content-Type", "application/json")
-	request.Header.Set("X-Client", "jetbrains-launcher")
+	request.Header.Set("X-Client", ServiceName)
 	resp, err := http.DefaultClient.Do(request)
 	var statusCode int
 	if resp != nil {

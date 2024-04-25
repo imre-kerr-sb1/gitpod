@@ -374,10 +374,30 @@ func configmap(ctx *common.RenderContext) ([]runtime.Object, error) {
 			Help: "Total number of JetBrains backend-plugin incompatible times",
 			Labels: []config.LabelAllowList{
 				{
-					Name:         "ide",
-					AllowValues:  []string{"*"},
-					DefaultValue: "NONE",
+					Name:        "ide",
+					AllowValues: []string{"*"},
 				},
+			},
+		},
+		{
+			Name: "supervisor_jb_backend_plugin_status_total",
+			Help: "Total number of JetBrains backend-plugin status",
+			Labels: []config.LabelAllowList{
+				{
+					Name:        "ide",
+					AllowValues: []string{"*"},
+				},
+				{
+					Name:        "status",
+					AllowValues: []string{"loaded", "started"},
+				},
+			},
+			Client: &config.ClientAllowList{
+				Name: "metric_client",
+				AllowValues: []string{
+					"jetbrains-launcher",
+				},
+				DefaultValue: "unknown",
 			},
 		},
 	}
