@@ -513,7 +513,17 @@ func run(launchCtx *LaunchContext) {
 	}
 	args = append(args, launchCtx.projectContextDir)
 
-	cmd := remoteDevServerCmd(args, launchCtx)
+	cmd := remoteDevServerCmd(args, launchCtx, true)
+
+	diagnostic := LauncherLogAnalyzer{}
+	if err := diagnostic.Analyze(cmd, "jb-launcher.log"); err != nil {
+		log.WithError(err).Error("failed to start log diagnostic")
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+	} else {
+		defer diagnostic.Stop()
+	}
+
 	cmd.Env = append(cmd.Env, "JETBRAINS_GITPOD_BACKEND_KIND="+launchCtx.alias)
 	workspaceUrl, err := url.Parse(launchCtx.wsInfo.WorkspaceUrl)
 	if err == nil {
@@ -612,11 +622,13 @@ func resolveLaunchContextEnv() []string {
 	return launchCtxEnv
 }
 
-func remoteDevServerCmd(args []string, launchCtx *LaunchContext) *exec.Cmd {
+func remoteDevServerCmd(args []string, launchCtx *LaunchContext, logDiagnostic bool) *exec.Cmd {
 	cmd := exec.Command(launchCtx.backendDir+"/bin/remote-dev-server.sh", args...)
 	cmd.Env = launchCtx.env
-	cmd.Stderr = os.Stderr
-	cmd.Stdout = os.Stdout
+	if !logDiagnostic {
+		cmd.Stderr = os.Stderr
+		cmd.Stdout = os.Stdout
+	}
 	return cmd
 }
 
@@ -1001,7 +1013,7 @@ func installPlugins(config *gitpod.GitpodConfig, launchCtx *LaunchContext) error
 	args = append(args, "installPlugins")
 	args = append(args, launchCtx.projectContextDir)
 	args = append(args, plugins...)
-	cmd := remoteDevServerCmd(args, launchCtx)
+	cmd := remoteDevServerCmd(args, launchCtx, false)
 	installErr := cmd.Run()
 
 	// delete alien_plugins.txt to suppress 3rd-party plugins consent on startup to workaround backend startup freeze

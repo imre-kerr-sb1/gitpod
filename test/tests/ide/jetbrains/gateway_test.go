@@ -151,14 +151,15 @@ func JetBrainsIDETest(ctx context.Context, t *testing.T, cfg *envconf.Config, id
 		t.Fatal(err)
 	}
 
+	rsa, closer, err := integration.Instrument(integration.ComponentWorkspace, "workspace", cfg.Namespace(), kubeconfig, cfg.Client(), integration.WithInstanceID(info.LatestInstance.ID), integration.WithWorkspacekitLift(true))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rsa.Close()
+	integration.DeferCloser(t, closer)
+
 	if ide == "intellij" {
 		t.Logf("Check idea.log file correct location")
-		rsa, closer, err := integration.Instrument(integration.ComponentWorkspace, "workspace", cfg.Namespace(), kubeconfig, cfg.Client(), integration.WithInstanceID(info.LatestInstance.ID), integration.WithWorkspacekitLift(true))
-		if err != nil {
-			t.Fatal(err)
-		}
-		defer rsa.Close()
-		integration.DeferCloser(t, closer)
 
 		qualifier := ""
 		if useLatest {
@@ -183,6 +184,29 @@ func JetBrainsIDETest(ctx context.Context, t *testing.T, cfg *envconf.Config, id
 			t.Fatal("idea.log file not found in the expected location")
 		}
 	}
+
+	// Check incompatible plugin, relates EXP-1835, EXP-1834
+	checkIncompatiblePlugin := func() {
+		logFile := "/var/log/gitpod/jb-plugin-incompatible.log"
+		t.Logf("Check incompatible plugin log file %s", logFile)
+
+		var resp agent.ExecResponse
+		err = rsa.Call("WorkspaceAgent.Exec", &agent.ExecRequest{
+			Dir:     "/",
+			Command: "bash",
+			Args: []string{
+				"-c",
+				fmt.Sprintf("cat %s", logFile),
+			},
+		}, &resp)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if resp.ExitCode == 0 {
+			t.Fatalf("incompatible plugin found in: %s", resp.Stdout)
+		}
+	}
+	checkIncompatiblePlugin()
 
 	ts := oauth2.StaticTokenSource(
 		&oauth2.Token{AccessToken: roboquatToken},
