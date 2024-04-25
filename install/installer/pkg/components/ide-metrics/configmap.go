@@ -369,6 +369,17 @@ func configmap(ctx *common.RenderContext) ([]runtime.Object, error) {
 				},
 			},
 		},
+		{
+			Name: "supervisor_jb_backend_plugin_incompatible_total",
+			Help: "Total number of JetBrains backend-plugin incompatible times",
+			Labels: []config.LabelAllowList{
+				{
+					Name:         "ide",
+					AllowValues:  []string{"*"},
+					DefaultValue: "NONE",
+				},
+			},
+		},
 	}
 
 	histogramMetrics := []config.HistogramMetricsConfiguration{

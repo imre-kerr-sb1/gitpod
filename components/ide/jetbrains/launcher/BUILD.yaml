@@ -27,6 +27,7 @@ packages:
       - components/gitpod-protocol/go:lib
       - components/supervisor-api/go:lib
       - components/common-go:lib
+      - components/ide-metrics-api/go:lib
     config:
       packaging: app
       buildCommand: ["go", "build", "-trimpath", "-ldflags", "-buildid= -w -s -X 'github.com/gitpod-io/gitpod/jetbrains/launcher.Version=commit-${__git_commit}'"]

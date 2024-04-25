@@ -515,9 +515,17 @@ func run(launchCtx *LaunchContext) {
 
 	cmd := remoteDevServerCmd(args, launchCtx, true)
 
-	analyzer := NewLauncherLogAnalyzer(cmd)
+	// analyze idea.log
+	ideaAnalyzer := NewIdeaLogAnalyzer(launchCtx, launchCtx.systemDir+"/log/idea.log")
+	ideaAnalyzerCtx, ideaAnalyzerCancel := context.WithCancel(context.Background())
+	_ = ideaAnalyzer.Analyze(ideaAnalyzerCtx)
+	defer ideaAnalyzerCancel()
+
+	// analyze remote-dev-server.sh log
+	analyzer := NewLauncherLogAnalyzer(launchCtx, cmd)
 	analyzerCtx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+
 	if err := analyzer.Analyze(analyzerCtx); err != nil {
 		log.WithError(err).Error("failed to start log diagnostic")
 		cmd.Stdout = os.Stdout

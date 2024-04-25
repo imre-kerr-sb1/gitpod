@@ -15,6 +15,7 @@ import (
 
 const (
 	TestInCompatibleString = "The Gitpod Remote (id=io.gitpod.jetbrains.remote, path=/workspace/.config/JetBrains/RemoteDev-PS/plugins/gitpod-remote, version=0.0.1-stable) plugin Plugin 'Gitpod Remote' (version '0.0.1-stable') is not compatible with the current version of the IDE, because it requires build 241.15989 or newer but the current build is PS-241.14494.237"
+	TestGitpodGatewayLink  = "Gitpod gateway link"
 )
 
 func TestLauncherLogAnalyzer_Analyze(t *testing.T) {
@@ -25,9 +26,8 @@ sleep 0.2
 echo happy testing
 echo "%s"
 sleep 0.1
-`, TestInCompatibleString))
-		// cmd := exec.Command("echo", "The Gitpod Remote (id=io.gitpod.jetbrains.remote, path=/workspace/.config/JetBrains/RemoteDev-PS/plugins/gitpod-remote, version=0.0.1-stable) plugin Plugin 'Gitpod Remote' (version '0.0.1-stable') is not compatible with the current version of the IDE, because it requires build 241.15989 or newer but the current build is PS-241.14494.237")
-		l := NewLauncherLogAnalyzer(cmd)
+`, TestGitpodGatewayLink))
+		l := NewLauncherLogAnalyzer(nil, cmd)
 		ctx, cancel := context.WithCancel(context.Background())
 		if err := l.Analyze(ctx); err != nil {
 			t.Errorf("unexpected error: %v", err)
@@ -40,8 +40,8 @@ sleep 0.1
 		}
 		time.Sleep(100 * time.Millisecond)
 		cancel()
-		if l.inCompatibleBackendPlugin != true {
-			t.Errorf("expected inCompatibleBackendPlugin to be true, but got false")
+		if l.isBackendPluginStarted != true {
+			t.Errorf("expected isBackendPluginStarted to be true, but got false")
 		}
 	})
 }
@@ -67,7 +67,7 @@ func TestIdeaLogFileAnalyzer_Analyze(t *testing.T) {
 		}
 
 		ctx, cancel := context.WithCancel(context.Background())
-		l := NewIdeaLogAnalyzer(logPath)
+		l := NewIdeaLogAnalyzer(nil, logPath)
 		if err := l.Analyze(ctx); err != nil {
 			t.Errorf("unexpected error: %v", err)
 		}

@@ -23,11 +23,13 @@ type LogAnalyzer interface {
 }
 
 const (
-	logDir = "/var/log/gitpod"
+	logDir                       = "/var/log/gitpod"
+	backendStartedPatternLogFile = "jb-backend-started.log"
 )
 
 var (
-	inCompatiblePattern = regexp.MustCompile(`Plugin 'Gitpod Remote' .* is not compatible`)
+	inCompatiblePattern   = regexp.MustCompile(`Plugin 'Gitpod Remote' .* is not compatible`)
+	backendStartedPattern = regexp.MustCompile(`Gitpod gateway link`)
 )
 
 // IdeaLogFileAnalyzer watches the idea.log file and does diagnostic on the output
@@ -35,13 +37,15 @@ type IdeaLogFileAnalyzer struct {
 	path                      string
 	inCompatibleBackendPlugin bool
 	wg                        sync.WaitGroup
+	launchCtx                 *LaunchContext
 }
 
 var _ LogAnalyzer = &IdeaLogFileAnalyzer{}
 
-func NewIdeaLogAnalyzer(path string) *IdeaLogFileAnalyzer {
+func NewIdeaLogAnalyzer(launchCtx *LaunchContext, path string) *IdeaLogFileAnalyzer {
 	return &IdeaLogFileAnalyzer{
-		path: path,
+		path:      path,
+		launchCtx: launchCtx,
 	}
 }
 
@@ -72,6 +76,7 @@ func (l *IdeaLogFileAnalyzer) Analyze(ctx context.Context) error {
 				}
 				if !l.inCompatibleBackendPlugin && inCompatiblePattern.Match([]byte(line.Text)) {
 					l.inCompatibleBackendPlugin = true
+					AddBackendPluginIncompatibleTotal(getIdeName(l.launchCtx))
 					log.WithField("line", line).Error("backend plugin is not compatible")
 				}
 			case <-ctx.Done():
@@ -87,16 +92,18 @@ func (l *IdeaLogFileAnalyzer) Analyze(ctx context.Context) error {
 // LauncherLogAnalyzer pipes JetBrains remote-dev-server.sh 's stdout and
 // stderr into os.Stdout and os.Stderr, and does diagnostic on the output
 type LauncherLogAnalyzer struct {
-	reader                    *io.PipeReader
-	writer                    *io.PipeWriter
-	inCompatibleBackendPlugin bool
-	cmd                       *exec.Cmd
-	wg                        sync.WaitGroup
+	reader                 *io.PipeReader
+	writer                 *io.PipeWriter
+	isBackendPluginStarted bool
+	cmd                    *exec.Cmd
+	wg                     sync.WaitGroup
+	launchCtx              *LaunchContext
 }
 
-func NewLauncherLogAnalyzer(cmd *exec.Cmd) *LauncherLogAnalyzer {
+func NewLauncherLogAnalyzer(launchCtx *LaunchContext, cmd *exec.Cmd) *LauncherLogAnalyzer {
 	return &LauncherLogAnalyzer{
-		cmd: cmd,
+		cmd:       cmd,
+		launchCtx: launchCtx,
 	}
 }
 
@@ -128,10 +135,11 @@ func (l *LauncherLogAnalyzer) doAnalyze() {
 	scanner := bufio.NewScanner(l.reader)
 	for scanner.Scan() {
 		line := scanner.Text()
-		if !l.inCompatibleBackendPlugin && inCompatiblePattern.Match([]byte(line)) {
-			l.inCompatibleBackendPlugin = true
+		if !l.isBackendPluginStarted && backendStartedPattern.Match([]byte(line)) {
+			l.isBackendPluginStarted = true
+			AddBackendPluginStartedTotal(getIdeName(l.launchCtx))
 			log.WithField("line", line).Error("backend plugin is not compatible")
-			// l.WriteToFile(inCompatiblePatternLogFile, line)
+			l.WriteToFile(backendStartedPatternLogFile, line)
 		}
 	}
 }
@@ -146,4 +154,11 @@ func (l *LauncherLogAnalyzer) WriteToFile(fileName string, line string) {
 	if _, err := f.WriteString(line); err != nil {
 		log.WithError(err).Error("failed to write to file")
 	}
+}
+
+func getIdeName(ctx *LaunchContext) string {
+	if ctx == nil {
+		return "unknown"
+	}
+	return ctx.alias
 }
