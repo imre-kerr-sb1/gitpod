@@ -188,6 +188,7 @@ func JetBrainsIDETest(ctx context.Context, t *testing.T, cfg *envconf.Config, id
 		if resp.ExitCode != 0 {
 			t.Fatal("idea.log file not found in the expected location")
 		}
+		// Check incompatible plugin, relates EXP-1835, EXP-1834
 		t.Log("Check incompatible plugin log")
 		output := resp.Stdout
 		if inCompatiblePattern.Match([]byte(output)) {
@@ -196,6 +197,30 @@ func JetBrainsIDETest(ctx context.Context, t *testing.T, cfg *envconf.Config, id
 			t.Logf("incompatible log not exists")
 		}
 	}
+
+	checkBackendPluginStarted := func() {
+		logFile := "/var/log/gitpod/jb-backend-started.log"
+		t.Logf("Check backend plugin is started %s", logFile)
+
+		var resp agent.ExecResponse
+		err = rsa.Call("WorkspaceAgent.Exec", &agent.ExecRequest{
+			Dir:     "/",
+			Command: "bash",
+			Args: []string{
+				"-c",
+				fmt.Sprintf("test -f %s", logFile),
+			},
+		}, &resp)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if resp.ExitCode == 0 {
+			t.Logf("backend plugin is started")
+		} else {
+			t.Fatalf("backend plugin is not started")
+		}
+	}
+	checkBackendPluginStarted()
 
 	ts := oauth2.StaticTokenSource(
 		&oauth2.Token{AccessToken: roboquatToken},
