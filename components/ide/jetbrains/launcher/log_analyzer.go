@@ -89,12 +89,8 @@ func (l *IdeaLogFileAnalyzer) Analyze(ctx context.Context) error {
 			select {
 			case line, ok := <-t.Lines:
 				if !ok {
-					log.Info("watcher chan closed11")
+					log.Info("watcher chan closed")
 					return
-				}
-				if f, err := os.OpenFile(logDir+"/test-idea.log", os.O_APPEND|os.O_WRONLY, os.ModeAppend); err != nil {
-					defer f.Close()
-					_, _ = f.WriteString(line.Text)
 				}
 				if line.Err != nil {
 					log.WithError(line.Err).Warn("error reading line")
