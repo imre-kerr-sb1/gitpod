@@ -69,7 +69,11 @@ func (l *IdeaLogFileAnalyzer) Analyze(ctx context.Context) error {
 
 		for {
 			select {
-			case line := <-t.Lines:
+			case line, ok := <-t.Lines:
+				if !ok {
+					log.Info("watcher chan closed")
+					return
+				}
 				if line.Err != nil {
 					log.WithError(line.Err).Warn("error reading line")
 					continue
