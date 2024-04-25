@@ -2,7 +2,7 @@
 // Licensed under the GNU Affero General Public License (AGPL).
 // See License.AGPL.txt in the project root for license information.
 
-package main
+package metrics
 
 import (
 	"bytes"
@@ -12,6 +12,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/gitpod-io/gitpod/common-go/log"
@@ -23,13 +24,18 @@ const (
 	BackendPluginStatusMetric       = "supervisor_jb_backend_plugin_status_total"
 )
 
+// update with go build
+// go build -trimpath -ldflags "-buildid= -w -s -X 'github.com/gitpod-io/gitpod/jetbrains/launcher/pkg/metrics.SendRequests=true'"
+var SendRequests = "false"
+
+var gitpodHost = strings.Replace(os.Getenv("GITPOD_HOST"), "https://", "", -1)
+
 func AddBackendPluginIncompatibleTotal(ide string) {
-	host := os.Getenv("GITPOD_HOST")
-	if host == "" {
+	if gitpodHost == "" {
 		log.Error("no GITPOD_HOST env")
 		return
 	}
-	doAddCounter(host, BackendPluginIncompatibleMetric, map[string]string{"ide": ide}, 1)
+	doAddCounter(gitpodHost, BackendPluginIncompatibleMetric, map[string]string{"ide": ide}, 1)
 }
 
 type PluginStatus string
@@ -40,15 +46,18 @@ const (
 )
 
 func AddBackendPluginStatus(ide string, status PluginStatus) {
-	host := os.Getenv("GITPOD_HOST")
-	if host == "" {
+	if gitpodHost == "" {
 		log.Error("no GITPOD_HOST env")
 		return
 	}
-	doAddCounter(host, BackendPluginStatusMetric, map[string]string{"ide": ide, "status": string(status)}, 1)
+	doAddCounter(gitpodHost, BackendPluginStatusMetric, map[string]string{"ide": ide, "status": string(status)}, 1)
 }
 
 func doAddCounter(gitpodHost string, name string, labels map[string]string, value uint64) {
+	if SendRequests == "false" {
+		log.Info("do not send ide-metrics requests")
+		return
+	}
 	req := &api.AddCounterRequest{
 		Name:   name,
 		Labels: labels,
@@ -70,7 +79,7 @@ func doAddCounter(gitpodHost string, name string, labels map[string]string, valu
 		return
 	}
 	request.Header.Set("Content-Type", "application/json")
-	request.Header.Set("X-Client", ServiceName)
+	request.Header.Set("X-Client", "jetbrains-launcher")
 	resp, err := http.DefaultClient.Do(request)
 	var statusCode int
 	if resp != nil {

@@ -30,7 +30,7 @@ packages:
       - components/ide-metrics-api/go:lib
     config:
       packaging: app
-      buildCommand: ["go", "build", "-trimpath", "-ldflags", "-buildid= -w -s -X 'github.com/gitpod-io/gitpod/jetbrains/launcher.Version=commit-${__git_commit}'"]
+      buildCommand: ["go", "build", "-trimpath", "-ldflags", "-buildid= -w -s -X 'github.com/gitpod-io/gitpod/jetbrains/launcher.Version=commit-${__git_commit}' -X 'github.com/gitpod-io/gitpod/jetbrains/launcher.SendRequests=true' -X 'github.com/gitpod-io/gitpod/jetbrains/launcher/pkg/metrics.SendRequests=true'"]
   - name: hot-swap
     type: generic
     deps:

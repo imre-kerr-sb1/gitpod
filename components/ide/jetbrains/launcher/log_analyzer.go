@@ -11,6 +11,7 @@ import (
 	"sync"
 
 	"github.com/gitpod-io/gitpod/common-go/log"
+	"github.com/gitpod-io/gitpod/jetbrains/launcher/pkg/metrics"
 	"github.com/nxadm/tail"
 )
 
@@ -51,13 +52,13 @@ func NewIdeaLogAnalyzer(launchCtx *LaunchContext, path string) *IdeaLogFileAnaly
 		launchCtx: launchCtx,
 		rules: []*LineMatchRule{
 			{Name: "plugin started", Pattern: regexp.MustCompile(`Gitpod gateway link`), LogFile: "jb-backend-started.log", matchedHandler: func() {
-				AddBackendPluginStatus(ide, PluginStatusStarted)
+				metrics.AddBackendPluginStatus(ide, metrics.PluginStatusStarted)
 			}},
 			{Name: "plugin loaded", Pattern: regexp.MustCompile(`Loaded custom plugins: Gitpod Remote`), LogFile: "jb-backend-loaded.log", matchedHandler: func() {
-				AddBackendPluginStatus(ide, PluginStatusLoaded)
+				metrics.AddBackendPluginStatus(ide, metrics.PluginStatusLoaded)
 			}},
 			{Name: "plugin incompatible", Pattern: regexp.MustCompile(`Plugin 'Gitpod Remote' .* is not compatible`), LogFile: "jb-backend-incompatible.log", matchedHandler: func() {
-				AddBackendPluginIncompatibleTotal(ide)
+				metrics.AddBackendPluginIncompatibleTotal(ide)
 			}},
 		},
 	}
