@@ -85,6 +85,15 @@ func TestIdeaLogFileAnalyzer_Analyze(t *testing.T) {
 			},
 		},
 		{
+			name: "should record plugin loaded",
+			args: args{
+				logfile:            "plugin_loaded.log",
+				ouputTestStr:       "Loaded custom plugins: JPA Buddy (241.14494.158), Gitpod Remote (0.0.1-stable)",
+				shouldWriteTestStr: true,
+				ruleName:           "plugin loaded",
+			},
+		},
+		{
 			name: "should record plugin incompatible",
 			args: args{
 				logfile:            "plugin_incompatible.log",

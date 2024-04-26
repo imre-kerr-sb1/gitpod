@@ -68,7 +68,7 @@ func NewIdeaLogAnalyzer(launchCtx *LaunchContext, logPath string) *IdeaLogFileAn
 			{Name: "plugin started", Pattern: regexp.MustCompile(`Gitpod gateway link`), LogFile: "jb-backend-started.log", matchedHandler: func() {
 				metrics.AddBackendPluginStatus(ide, metrics.PluginStatusStarted)
 			}},
-			{Name: "plugin loaded", Pattern: regexp.MustCompile(`Loaded custom plugins: Gitpod Remote`), LogFile: "jb-backend-loaded.log", matchedHandler: func() {
+			{Name: "plugin loaded", Pattern: regexp.MustCompile(`Loaded custom plugins:.* Gitpod Remote`), LogFile: "jb-backend-loaded.log", matchedHandler: func() {
 				metrics.AddBackendPluginStatus(ide, metrics.PluginStatusLoaded)
 			}},
 			{Name: "plugin incompatible", Pattern: regexp.MustCompile(`Plugin 'Gitpod Remote' .* is not compatible`), LogFile: "jb-backend-incompatible.log", matchedHandler: func() {
