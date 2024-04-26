@@ -158,6 +158,8 @@ func JetBrainsIDETest(ctx context.Context, t *testing.T, cfg *envconf.Config, id
 	defer rsa.Close()
 	integration.DeferCloser(t, closer)
 
+	fatalMessages := []string{}
+
 	if ide == "intellij" {
 		t.Logf("Check idea.log file correct location")
 
@@ -177,11 +179,11 @@ func JetBrainsIDETest(ctx context.Context, t *testing.T, cfg *envconf.Config, id
 		}, &resp)
 
 		if err != nil {
-			t.Fatal(err)
-		}
-
-		if resp.ExitCode != 0 {
-			t.Fatal("idea.log file not found in the expected location")
+			fatalMessages = append(fatalMessages, err.Error())
+		} else {
+			if resp.ExitCode != 0 {
+				fatalMessages = append(fatalMessages, "idea.log file not found in the expected location")
+			}
 		}
 	}
 
@@ -200,19 +202,20 @@ func JetBrainsIDETest(ctx context.Context, t *testing.T, cfg *envconf.Config, id
 			},
 		}, &resp)
 		if err != nil {
-			t.Fatal(err)
-		}
-		if resp.ExitCode == 0 {
-			if shouldExist {
-				t.Logf("%s: found, passed, content: %s", task, resp.Stdout)
-			} else {
-				t.Fatalf("%s: expect %s to not exist, content: %s", task, logFile, resp.Stdout)
-			}
+			fatalMessages = append(fatalMessages, err.Error())
 		} else {
-			if shouldExist {
-				t.Fatalf("%s: expect %s to exist %s", task, logFile, resp.Stderr)
+			if resp.ExitCode == 0 {
+				if shouldExist {
+					t.Logf("%s: found, passed, content: %s", task, resp.Stdout)
+				} else {
+					fatalMessages = append(fatalMessages, fmt.Sprintf("%s: expect %s to not exist, content: %s", task, logFile, resp.Stdout))
+				}
 			} else {
-				t.Logf("%s: notfound, passed", task)
+				if shouldExist {
+					fatalMessages = append(fatalMessages, fmt.Sprintf("%s: expect %s to exist %s", task, logFile, resp.Stderr))
+				} else {
+					t.Logf("%s: notfound, passed", task)
+				}
 			}
 		}
 	}
@@ -220,6 +223,10 @@ func JetBrainsIDETest(ctx context.Context, t *testing.T, cfg *envconf.Config, id
 	checkIDEALogAnalyzerResults("PluginIncompatible", "/var/log/gitpod/jb-backend-incompatible.log", false)
 	checkIDEALogAnalyzerResults("PluginLoaded", "/var/log/gitpod/jb-backend-loaded.log", true)
 	checkIDEALogAnalyzerResults("PluginStarted", "/var/log/gitpod/jb-backend-started.log", true)
+
+	if len(fatalMessages) > 0 {
+		t.Fatalf("tests fail: \n%s", strings.Join(fatalMessages, "\n"))
+	}
 
 	ts := oauth2.StaticTokenSource(
 		&oauth2.Token{AccessToken: roboquatToken},
