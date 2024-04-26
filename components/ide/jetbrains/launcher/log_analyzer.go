@@ -21,8 +21,14 @@ type LogAnalyzer interface {
 }
 
 const (
-	logDir = "/var/log/gitpod"
+	logDir = "/tmp/ide-desktop-log"
 )
+
+func init() {
+	if err := os.MkdirAll(logDir, 0755); err != nil {
+		log.WithError(err).Error("failed to create logDir")
+	}
+}
 
 type LineMatchRule struct {
 	Name           string         // rule name
@@ -52,7 +58,7 @@ func NewIdeaLogAnalyzer(launchCtx *LaunchContext, logPath string) *IdeaLogFileAn
 	if err := os.MkdirAll(logDir, 0755); err != nil {
 		// if error and the directory does not exist, watcher will close chan directly
 		// so no need to return error here
-		log.WithError(err).Error("failed to create log directory")
+		log.WithError(err).Error("failed to create log file's directory")
 	}
 
 	l := &IdeaLogFileAnalyzer{

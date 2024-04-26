@@ -220,9 +220,9 @@ func JetBrainsIDETest(ctx context.Context, t *testing.T, cfg *envconf.Config, id
 		}
 	}
 	// see components/ide/jetbrains/launcher/log_analyzer.go
-	checkIDEALogAnalyzerResults("PluginIncompatible", "/var/log/gitpod/jb-backend-incompatible.log", false)
-	checkIDEALogAnalyzerResults("PluginLoaded", "/var/log/gitpod/jb-backend-loaded.log", true)
-	checkIDEALogAnalyzerResults("PluginStarted", "/var/log/gitpod/jb-backend-started.log", true)
+	checkIDEALogAnalyzerResults("PluginIncompatible", "/tmp/ide-desktop-log/jb-backend-incompatible.log", false)
+	checkIDEALogAnalyzerResults("PluginLoaded", "/tmp/ide-desktop-log/jb-backend-loaded.log", true)
+	checkIDEALogAnalyzerResults("PluginStarted", "/tmp/ide-desktop-log/jb-backend-started.log", true)
 
 	if len(fatalMessages) > 0 {
 		t.Fatalf("tests fail: \n%s", strings.Join(fatalMessages, "\n"))
