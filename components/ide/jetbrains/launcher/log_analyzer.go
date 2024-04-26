@@ -100,6 +100,17 @@ func (l *IdeaLogFileAnalyzer) Analyze(ctx context.Context) error {
 			_ = t.Stop()
 		}()
 
+		debugFile, _ := os.Create(logDir + "/debug-analyzer.log")
+		if debugFile != nil {
+			defer debugFile.Close()
+		}
+		writeDebugAnalyzerLog := func(line string) {
+			if debugFile == nil {
+				return
+			}
+			_, _ = debugFile.WriteString(line + "\n")
+		}
+
 		for {
 			select {
 			case line, ok := <-t.Lines:
@@ -111,6 +122,7 @@ func (l *IdeaLogFileAnalyzer) Analyze(ctx context.Context) error {
 					log.WithError(line.Err).Warn("error reading line")
 					continue
 				}
+				writeDebugAnalyzerLog(line.Text)
 				for _, rule := range l.rules {
 					if rule.matched || !rule.Pattern.Match([]byte(line.Text)) {
 						continue
