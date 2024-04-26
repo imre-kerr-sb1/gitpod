@@ -7,6 +7,7 @@ package main
 import (
 	"context"
 	"os"
+	"path"
 	"regexp"
 	"sync"
 
@@ -42,13 +43,20 @@ type IdeaLogFileAnalyzer struct {
 
 var _ LogAnalyzer = &IdeaLogFileAnalyzer{}
 
-func NewIdeaLogAnalyzer(launchCtx *LaunchContext, path string) *IdeaLogFileAnalyzer {
+func NewIdeaLogAnalyzer(launchCtx *LaunchContext, logPath string) *IdeaLogFileAnalyzer {
 	ide := "unknown"
 	if launchCtx != nil {
 		ide = launchCtx.alias
 	}
+	logDir := path.Dir(logPath)
+	if err := os.MkdirAll(logDir, 0755); err != nil {
+		// if error and the directory does not exist, watcher will close chan directly
+		// so no need to return error here
+		log.WithError(err).Error("failed to create log directory")
+	}
+
 	l := &IdeaLogFileAnalyzer{
-		path:      path,
+		path:      logPath,
 		launchCtx: launchCtx,
 		rules: []*LineMatchRule{
 			{Name: "plugin started", Pattern: regexp.MustCompile(`Gitpod gateway link`), LogFile: "jb-backend-started.log", matchedHandler: func() {
